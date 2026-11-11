@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#10131b">
+<title>MineReal_Studio v10 — MineReal-Info Device Bridge</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1017;--panel:#171c27;--panel2:#202838;--text:#edf2fb;--muted:#9aa8bd;--accent:#72a7ff;--good:#62d6a3;--bad:#ff8585;--line:#303b4d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+header{position:sticky;top:0;z-index:50;padding:16px 16px 12px;background:linear-gradient(135deg,#18253aeF,#151927eF);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid #ffffff1b}
+h1{font-size:24px;margin:0 0 4px}header p{margin:0;color:var(--muted)}#mainNav{display:flex;gap:7px;overflow-x:auto;padding-top:12px;scrollbar-width:none}#mainNav a{flex:0 0 auto;color:#c9d8ef;text-decoration:none;font-size:12px;padding:7px 11px;border:1px solid #ffffff20;border-radius:999px;background:#ffffff0b}#mainNav a:active{background:#ffffff22}
+main{max-width:900px;margin:auto;padding:14px;display:grid;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;min-width:0}
+h2{font-size:18px;margin:0 0 10px}h3{font-size:16px;margin:0 0 6px}
+select,button,textarea{font:inherit}
+.extra-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.extra-actions button{flex:1;min-width:130px}.lesson-note{padding:12px;border:1px solid var(--line);border-radius:10px;background:#111a28;margin:10px 0}.voice-status{font-size:13px;color:var(--muted);margin-top:6px}
+select,button{min-height:46px;border-radius:10px;border:1px solid var(--line);padding:10px 12px;background:var(--panel2);color:var(--text)}
+button{font-weight:650;cursor:pointer}button.primary{background:#3478e5;border-color:#3478e5;color:white}
+button:disabled{opacity:.55;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+#editor{width:100%;min-height:220px;resize:vertical;background:#090d14;color:#e6edf8;border:1px solid #39465b;border-radius:11px;padding:13px;font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4;white-space:pre;overflow:auto}
+#output{min-height:110px;max-height:260px;overflow:auto;background:#080b11;border:1px solid #303b4d;border-radius:10px;padding:12px;font:13px/1.55 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.muted{color:var(--muted)}.status{font-size:13px;color:var(--muted);margin-top:8px}.error{color:var(--bad)}.success{color:var(--good)}
+.lesson-list{display:grid;gap:8px}.lesson{width:100%;text-align:left;background:#1d2533;padding:12px}.lesson small{display:block;color:var(--muted);font-weight:400;margin-top:3px}
+.theory{color:#d5deeb}.theory code,.task code{background:#283347;padding:2px 5px;border-radius:5px}
+#task{color:#d5deeb;margin:0 0 10px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:5px 15px 25px}
+@media(min-width:720px){main{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}.lesson-list{grid-template-columns:1fr 1fr}}
+
+/* Плавающие инструменты: журнал и чат */
+#logsFab{position:fixed;right:18px;bottom:84px;z-index:1000;border:1px solid #53647e;border-radius:999px;padding:10px 16px;background:#202b40;color:#fff;box-shadow:0 6px 22px #0009}
+#logsDrawer{position:fixed;z-index:1002;right:12px;bottom:140px;width:min(520px,calc(100vw - 24px));height:min(68vh,620px);display:none;flex-direction:column;background:#0c121d;border:1px solid #52627d;border-radius:16px;box-shadow:0 18px 60px #000c;overflow:hidden}
+#logsDrawer.open{display:flex}#logsHead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;background:#202b40;border-bottom:1px solid var(--line)}
+#logsActions{display:flex;gap:6px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--line)}#logsActions button{min-height:38px;font-size:12px;padding:7px 9px}
+#agentLogs{margin:0;padding:10px;overflow:auto;flex:1;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;color:#c9d5e7}
+.log-info{color:#b9d2ff}.log-warn{color:#ffd28a}.log-error{color:#ff9a9a}.log-ok{color:#83e0b4}
+/* Состояния AI-Agent: вращающееся кольцо по внешнему краю кнопки */
+#aiFab{position:fixed;isolation:isolate;transition:box-shadow .25s,border-color .25s,filter .25s}
+#aiFab::after{content:"";position:absolute;inset:-5px;border-radius:inherit;padding:3px;pointer-events:none;opacity:0; background:conic-gradient(from 0deg,transparent 0 22%,#75baff 34%,#b78cff 48%,transparent 62% 100%); -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+#aiFab.loading::after{opacity:1;animation:agentOrbit 1.15s linear infinite}
+#aiFab.ready{outline:2px solid #8be6b4;outline-offset:3px;box-shadow:0 0 0 5px #79e5aa20,0 8px 28px #0009}
+#aiFab.ready::after{opacity:0}#aiFab.error{outline:2px solid #ff8989;outline-offset:3px}
+@keyframes agentOrbit{to{transform:rotate(360deg)}}
+/* iOS glass: полупрозрачные поверхности и мягкие блики */
+#aiDrawer{background:linear-gradient(145deg,#ffffff20,#a9c7ff0b 45%,#171d2bdc),rgba(18,25,39,.82);border:1px solid #ffffff38;backdrop-filter:blur(28px) saturate(165%);-webkit-backdrop-filter:blur(28px) saturate(165%);border-radius:26px;box-shadow:0 24px 80px #000b,inset 0 1px #ffffff35}
+#aiDrawerHead{background:linear-gradient(110deg,#ffffff20,#ffffff08);border-bottom:1px solid #ffffff24;padding:15px 16px}
+#aiDrawerHead strong{letter-spacing:.2px}#aiDrawerHead button{border-radius:50%;min-width:38px;min-height:38px;background:#ffffff18;border-color:#ffffff30}
+#aiDrawerBody{padding:14px;background:linear-gradient(180deg,#ffffff06,transparent)}
+#aiDrawerBody #aiQuestion,#aiDrawerBody #aiAnswer{background:#08111dbb!important;border:1px solid #ffffff26!important;border-radius:17px!important;box-shadow:inset 0 1px 8px #0003}
+#aiDrawerBody button{border-radius:14px}#aiDrawerBody #aiAskBtn{background:linear-gradient(120deg,#438bfa,#8668e8);border:0}
+#liveContextLine{padding:9px 12px;border-radius:12px;background:#ffffff0d;border:1px solid #ffffff18}
+/* Читаемый терминал */
+#logsDrawer{background:linear-gradient(145deg,#111c2b,#080d15);border:1px solid #49617d;border-radius:18px}
+#terminalBar{display:flex;gap:7px;align-items:center;padding:9px 10px;background:#111a27;border-top:1px solid #29394d}
+#terminalPrompt{color:#78e0ad;font:12px ui-monospace,monospace;white-space:nowrap}
+#logCommand{min-width:0;flex:1;background:#050a11;color:#dceaff;border:1px solid #3b526c;border-radius:8px;padding:9px;font:12px ui-monospace,monospace}
+#runLogCommand{min-height:36px;padding:6px 10px;font-size:12px}
+#terminalHelp{padding:0 10px 9px;color:#91a4bc;font:11px/1.5 ui-monospace,monospace;background:#111a27}
+.log-banner{color:#8be6b4}.log-command-result{color:#d6e5ff}
+.voice-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.voice-tools button{flex:1;min-width:120px}
+#voiceInputStatus{font-size:12px;color:#aebed3;padding:0 2px}
+@media(prefers-reduced-motion:reduce){#aiFab.loading::after{animation:none}}
+/* Плавающий чат CodePath AI */
+#aiFab{position:fixed;right:18px;bottom:22px;z-index:1000;border:0;border-radius:999px;padding:14px 18px;background:linear-gradient(135deg,#3478e5,#7655df);color:#fff;box-shadow:0 8px 28px #0009;display:flex;align-items:center;gap:9px}
+#aiDrawer{position:fixed;z-index:1001;right:12px;bottom:84px;width:min(440px,calc(100vw - 24px));height:min(72vh,680px);display:none;flex-direction:column;background:#111824;border:1px solid #43516a;border-radius:18px;box-shadow:0 18px 60px #000b;overflow:hidden}
+#aiDrawer.open{display:flex}#aiDrawerHead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#202b40;border-bottom:1px solid var(--line)}
+#aiDrawerBody{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:9px;min-height:0}#aiDrawerBody #aiAnswer{flex:1;min-height:130px;max-height:none;margin:0}
+#aiDrawerBody #aiQuestion{min-height:76px;max-height:130px}#aiDrawerBody .row{flex-wrap:wrap}#aiDrawerBody .row button{min-width:0}
+#aiNudge{position:fixed;right:14px;bottom:82px;z-index:999;display:none;max-width:min(340px,calc(100vw - 28px));background:#202b40;border:1px solid #52627d;border-radius:12px;padding:12px;box-shadow:0 8px 30px #0009}
+#aiNudge button{margin-top:8px}#contextTools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+@media(max-width:420px){#logsFab{right:12px;bottom:78px;padding:9px 14px}#logsDrawer{right:7px;bottom:132px;width:calc(100vw - 14px);height:68vh}#aiFab{right:12px;bottom:14px;padding:13px 15px}#aiDrawer{right:7px;bottom:72px;width:calc(100vw - 14px);height:76vh}}
+
+/* MineReal Device Bridge: live phone profile and adaptive AI resource policy */
+#deviceBridgePanel{border-color:#3f5877;background:linear-gradient(145deg,#172438,#121a27)}
+#deviceBridgeHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#deviceBridgeHeader h2{margin:0}
+#deviceBridgeStatus{margin:10px 0;padding:10px 12px;border:1px solid #344a63;border-radius:10px;background:#0d1725;color:#b9cbe2;font-size:13px}
+#deviceBridgeStatus.connected{border-color:#36785e;color:#9ce3bf}
+#deviceBridgeStatus.warning{border-color:#806b3f;color:#f0d49b}
+#deviceBridgeStatus.error{border-color:#834b55;color:#ffb0b0}
+.device-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:10px 0}
+.device-cell{min-width:0;border:1px solid #314056;border-radius:10px;background:#0b121d;padding:10px}
+.device-cell span{display:block;color:#8fa3be;font-size:11px;margin-bottom:4px}
+.device-cell strong{display:block;font-size:13px;overflow-wrap:anywhere}
+#deviceResourcePolicy{font-size:12px;color:#aebed3;line-height:1.5}
+#deviceBridgePanel button{min-height:40px}
+.studio-code-card{margin-top:12px;padding:13px;border:1px solid #66508c;border-radius:13px;background:linear-gradient(120deg,#25203b,#172b39)}
+.studio-code-label{font-size:10px;letter-spacing:1.1px;color:#b9a5ed;font-weight:700}
+#studioCodeValue{display:block;font:800 26px/1.3 ui-monospace,monospace;letter-spacing:3px;color:#fff;margin:7px 0}
+#studioCodeMeta{font-size:11px}
+
+</style>
+</head>
+<body>
+<header><h1>MineReal_Studio</h1><p>Среда разработки и обучения • локальный AI-Agent • MineReal-Info Device Bridge</p><nav id="mainNav" aria-label="Быстрая навигация"><a href="#lessons">Уроки</a><a href="#lessonTitle">Редактор</a><a href="#output">Консоль</a><a href="#localAiPanel">AI-Agent</a><a href="#localAiPanel" onclick="document.getElementById('aiFab').click();return false">Открыть чат ↗</a></nav></header>
+<main>
+<section class="panel wide" id="deviceBridgePanel">
+ <div id="deviceBridgeHeader"><h2>📱 MineReal Device Bridge</h2><button id="refreshDevice" type="button">↻ Обновить характеристики</button></div>
+ <div id="deviceBridgeStatus">Проверяю подключение к MineReal Device Bridge…</div>
+ <div class="device-grid">
+  <div class="device-cell"><span>Устройство / Android</span><strong id="deviceModel">Не получено</strong></div>
+  <div class="device-cell"><span>RAM: доступно / всего</span><strong id="deviceRam">Не получено</strong></div>
+  <div class="device-cell"><span>Внутреннее хранилище: свободно</span><strong id="deviceStorage">Не получено</strong></div>
+  <div class="device-cell"><span>CPU / доступные ядра</span><strong id="deviceCpu">Не получено</strong></div>
+  <div class="device-cell"><span>GPU</span><strong id="deviceGpu">Не получено</strong></div>
+  <div class="device-cell"><span>Температура батареи</span><strong id="deviceTemperature">Не получено</strong></div>
+ </div>
+ <div id="deviceResourcePolicy">Политика AI: целевой бюджет памяти агента — около 1,7 ГБ; одновременно выполняется не более одного запроса к модели. Браузер не может жёстко закрепить физические ядра CPU или гарантировать лимит RAM.</div>
+ <div class="studio-code-card">
+  <div class="studio-code-label">ЦИФРОВОЙ КОД УСТАНОВКИ · MINEREAL_STUDIO</div>
+  <strong id="studioCodeValue">Ожидаю MineReal-Info…</strong>
+  <div id="studioCodeMeta" class="muted">Код выдаётся приложением после разрешения доступа к Device Bridge.</div>
+ </div>
+</section>
+
+<section class="panel wide" id="lessonsPanel">
+<h2>📚 Учебная программа</h2>
+<p class="muted">Выбери урок, прочитай объяснение и напиши решение самостоятельно. Готовый пример скрыт, пока ты сам его не запросишь.</p>
+<div id="lessons" class="lesson-list"></div>
+</section>
+<section class="panel wide">
+<h2 id="lessonTitle">Редактор кода</h2>
+<div id="theory" class="theory muted">Выбери урок выше или начни писать собственный код.</div>
+<div class="extra-actions"><button id="speakBtn" type="button">🔊 Озвучить объяснение</button><button id="stopSpeakBtn" type="button">■ Остановить голос</button><button id="hintBtn" type="button">💡 Подсказка</button></div><div id="voiceStatus" class="voice-status">Озвучивание использует голоса, доступные в Android и браузере.</div><div id="hintBox" class="lesson-note" hidden></div>
+<p id="task" class="task"></p>
+<div class="row" style="margin:12px 0">
+<select id="language" aria-label="Язык программирования"><option value="python">Python</option><option value="javascript">JavaScript</option></select>
+<button id="checkBtn">Проверить решение</button>
+</div>
+<textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Редактор кода" placeholder="Напиши здесь свой код... Поле специально пустое."></textarea>
+<div class="row" style="margin-top:10px">
+<button class="primary" id="runBtn">▶ Запустить</button>
+<button id="exampleBtn">Показать пример</button><button id="clearBtn">Очистить</button>
+</div>
+<div class="status" id="runtimeStatus">Python: ещё не загружен. Загрузка начнётся при первом запуске.</div>
+</section>
+<section class="panel wide">
+<div class="row" style="align-items:center"><h2 style="margin:0">⌨️ Консоль</h2><button id="clearOutput" style="flex:0 0 auto">Очистить вывод</button></div>
+<pre id="output" aria-live="polite">Здесь появится результат выполнения программы.</pre>
+</section>
+
+<section class="panel wide" id="localAiPanel">
+<h2>🧠 Локальный AI-Agent_MineReal</h2>
+<p class="muted">Локальный преподаватель автоматически запускается при каждом открытии сайта. После первой загрузки файлы модели повторно берутся из кэша браузера. Интернет нужен для первой установки и если кэш был удалён.</p>
+<div class="lesson-note"><strong>Модель:</strong> Llama 3.2 1B Instruct, 4-bit. Ориентир по памяти GPU — около 0,9 ГБ, дополнительно потребуются оперативная память и место для файлов модели. Для слабых телефонов запуск может не подойти.</div>
+<div class="row">
+<button class="primary" id="aiInstallBtn">↻ Запустить / повторить загрузку</button>
+<button id="aiUnloadBtn">Освободить память</button>
+</div>
+<div class="status" id="aiStatus">ИИ ещё не загружен. Для первой установки нужен интернет и поддержка WebGPU.</div>
+<div style="height:9px;background:#0a0e16;border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:10px 0"><div id="aiProgress" style="height:100%;width:0;background:linear-gradient(90deg,#3478e5,#8062e8);transition:width .2s"></div></div>
+<div class="status" id="aiStorage">Проверка браузерного хранилища ещё не выполнена.</div>
+<div class="lesson-note"><strong>Локальный учебный контекст включён.</strong> Агент учитывает открытые уроки, переходы, изменения редактора, запуски, результаты, проверки, подсказки и историю диалога. Эти данные сохраняются на этом устройстве. Агент не исправляет и не перечисляет ошибки сам: сначала даёт тебе возможность найти их самостоятельно. Помощь предложит только после повторных затруднений.</div>
+<div id="contextTools"><button id="exportLearningData">Экспортировать прогресс и контекст</button><button id="clearLearningData">Очистить локальную историю действий</button></div>
+<div class="row" style="margin:12px 0"><button class="primary" id="aiTutorModeBtn" disabled>Перейти на обучение с ИИ</button><button id="aiLessonHelpBtn" disabled>Помоги с текущим уроком</button><button id="aiReviewCodeBtn" disabled>Разобрать мой код</button></div>
+<div class="lesson-note" id="aiModeInfo">Обычный режим: ты проходишь уроки сам и можешь обращаться к агенту. В режиме обучения с ИИ агент ведёт тебя по шагам, задаёт вопросы, даёт подсказки и проверяет твой код.</div>
+<label for="aiQuestion" class="muted">Сообщение локальному преподавателю</label>
+<textarea id="aiQuestion" rows="3" style="width:100%;background:#090d14;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit" placeholder="Например: объясни, что такое переменная, на простом примере"></textarea>
+<div class="row" style="margin-top:8px"><button class="primary" id="aiAskBtn" disabled>Отправить вопрос</button><button id="aiClearBtn">Очистить диалог</button></div><div class="voice-tools" id="voiceTools"><button id="voiceRecordBtn" type="button">🎙️ Записать голосовое</button><button id="voiceSpeakBtn" type="button">🔊 Озвучить ответ</button><button id="voiceStopBtn" type="button">■ Стоп</button></div><div id="voiceInputStatus">Голосовой ввод зависит от поддержки распознавания речи в браузере Android.</div>
+<pre id="aiAnswer" style="white-space:pre-wrap;overflow-wrap:anywhere;min-height:90px;max-height:360px;overflow:auto;background:#080b11;border:1px solid var(--line);border-radius:10px;padding:12px">Ответы появятся здесь. Пока модель не загружена, раздел не выполняет запросы.</pre>
+<p class="muted">Важно: локальная модель не является безошибочным преподавателем. Проверяй примеры запуском кода. Модель не отправляет вопросы в облачный ИИ, но файлы самой модели при первой загрузке скачиваются с внешнего хранилища.</p>
+</section>
+<section class="panel">
+<h2>🧭 Как пользоваться</h2>
+<p class="muted">1. Открой урок. 2. Изучи теорию. 3. Измени код в редакторе. 4. Нажми «Запустить». 5. Нажми «Проверить задачу».</p>
+</section>
+
+<section class="panel">
+<h2>⚙️ О среде выполнения</h2>
+<p class="muted">Python работает через Pyodide в Web Worker. Первая загрузка может занять время и потребовать интернет. JavaScript выполняется локально в изолированной асинхронной функции.</p>
+</section>
+</main>
+<button id="logsFab" type="button" aria-label="Открыть журнал работы агента">☷ Logs</button>
+<button id="aiFab" class="idle" type="button" aria-label="Открыть чат локального ИИ"><span>🧠</span><span>AI-Agent</span><small id="aiFabState" style="font-size:10px;opacity:.85">не готов</small></button>
+<aside id="logsDrawer" aria-label="Журнал работы AI-Agent">
+ <div id="logsHead"><strong>☷ Logs — журнал агента</strong><button id="closeLogs" type="button">Закрыть ✕</button></div>
+ <div id="logsActions"><button id="copyLogs">Копировать</button><button id="downloadLogs">Скачать .txt</button><button id="refreshLogs">Обновить хранилище</button><button id="clearLogs">Очистить журнал</button></div>
+ <pre id="agentLogs" aria-live="polite">Журнал запускается…</pre>
+ <div id="terminalBar"><span id="terminalPrompt">user@codepath:~$</span><input id="logCommand" autocomplete="off" spellcheck="false" placeholder="help / errors / model / tail 30"><button id="runLogCommand" type="button">Выполнить</button></div><div id="terminalHelp">Команды: help · all · errors · model · device · storage · network · tail 30 · find текст · stage install</div>
+</aside>
+<div id="aiNudge" role="status"><strong>Нужна помощь?</strong><div>Ты уже несколько раз пробуешь решить задачу. Я пока не буду показывать ошибку — могу дать небольшую наводку, если попросишь.</div><button id="openFromNudge" class="primary">Открыть преподавателя</button></div>
+<aside id="aiDrawer" aria-label="Чат локального преподавателя">
+ <div id="aiDrawerHead"><strong>🧠 AI-Agent_MineReal</strong><button id="closeAiDrawer" type="button" aria-label="Закрыть чат">✕</button></div>
+ <div id="aiDrawerBody"><div class="muted" id="liveContextLine">Контекст урока будет передаваться локальному агенту.</div></div>
+</aside>
+<footer>MineReal_Studio v10 • MineReal-Info Device Bridge • локальная модель WebGPU. Не запускай неизвестный код, полученный от посторонних.</footer>
+<script>
+"use strict";
+// Локальный диагностический журнал: хранится только в браузере этого устройства.
+const AGENT_LOG_KEY='codepath_agent_logs_v1';let agentLogEntries=[];
+try{agentLogEntries=JSON.parse(localStorage.getItem(AGENT_LOG_KEY)||'[]');if(!Array.isArray(agentLogEntries))agentLogEntries=[];}catch{agentLogEntries=[];}
+function agentLog(level,stage,message,details){const entry={time:new Date().toISOString(),level,stage,message:String(message),details:details===undefined?'':(typeof details==='string'?details:JSON.stringify(details))};agentLogEntries.push(entry);if(agentLogEntries.length>2500)agentLogEntries=agentLogEntries.slice(-2500);try{localStorage.setItem(AGENT_LOG_KEY,JSON.stringify(agentLogEntries));}catch(e){/* журнал продолжает работать в памяти вкладки */}renderAgentLogs();}
+function renderAgentLogs(){const el=document.getElementById('agentLogs');if(!el)return;el.textContent=agentLogEntries.map(x=>`[${new Date(x.time).toLocaleTimeString('ru-RU')}] ${({info:'ИНФО',warn:'ВНИМАНИЕ',error:'ОШИБКА',ok:'ГОТОВО'}[x.level]||x.level)} · ${x.stage}: ${x.message}${x.details?'\n    '+x.details:''}`).join('\n')||'Журнал пуст.';el.scrollTop=el.scrollHeight;}
+function runLogTerminal(){const input=document.getElementById('logCommand'),out=document.getElementById('agentLogs');const raw=input.value.trim();if(!raw)return;const [cmd,...rest]=raw.split(/\s+/),arg=rest.join(' ');let rows=[...agentLogEntries];if(cmd==='help'){out.textContent='ДОСТУПНЫЕ КОМАНДЫ\nhelp — справка\nall — все события\nerrors — ошибки и предупреждения\nmodel — загрузка модели и прогресс\nstorage — IndexedDB/Cache/место\nnetwork — CDN и сетевые запросы\ntail 30 — последние N событий\nfind текст — поиск по журналу\nstage install — этап установки\nstage inference — запросы/ответы модели\ndevice — последнее состояние MineReal Device Bridge';return;}if(cmd==='errors')rows=rows.filter(x=>['error','warn'].includes(x.level));else if(cmd==='model')rows=rows.filter(x=>/model|progress|engine|install/i.test(x.stage+' '+x.message));else if(cmd==='device')rows=rows.filter(x=>/device-bridge|device|resource/i.test(x.stage+' '+x.message+' '+x.details));else if(cmd==='storage')rows=rows.filter(x=>/storage|cache|indexeddb|memory/i.test(x.stage+' '+x.message+' '+x.details));else if(cmd==='network')rows=rows.filter(x=>/cdn|fetch|network|http|source/i.test(x.stage+' '+x.message+' '+x.details));else if(cmd==='tail')rows=rows.slice(-Math.max(1,Math.min(500,Number(arg)||30)));else if(cmd==='find')rows=rows.filter(x=>(x.stage+' '+x.message+' '+x.details).toLowerCase().includes(arg.toLowerCase()));else if(cmd==='stage')rows=rows.filter(x=>(x.stage+' '+x.message).toLowerCase().includes(arg.toLowerCase()));else if(cmd!=='all'){out.textContent='Неизвестная команда: '+cmd+'\nВведи help для списка команд.';return;}out.textContent=rows.map(x=>`[${new Date(x.time).toLocaleTimeString('ru-RU')}] ${x.level.toUpperCase()} · ${x.stage}: ${x.message}${x.details?'\n    '+x.details:''}`).join('\n')||'По этому запросу записей нет.';out.scrollTop=out.scrollHeight;agentLog('info','terminal','Выполнена команда терминала',{command:raw,matched:rows.length});}
+
+function openLogs(){document.getElementById('logsDrawer').classList.add('open');renderAgentLogs();agentLog('info','ui','Открыт журнал диагностики');}
+document.addEventListener('DOMContentLoaded',()=>{document.getElementById('runLogCommand')?.addEventListener('click',runLogTerminal);document.getElementById('logCommand')?.addEventListener('keydown',e=>{if(e.key==='Enter')runLogTerminal();});document.getElementById('logsFab')?.addEventListener('click',openLogs);document.getElementById('closeLogs')?.addEventListener('click',()=>document.getElementById('logsDrawer').classList.remove('open'));document.getElementById('copyLogs')?.addEventListener('click',async()=>{const t=agentLogEntries.map(x=>`[${x.time}] [${x.level}] [${x.stage}] ${x.message} ${x.details}`).join('\n');try{await navigator.clipboard.writeText(t);agentLog('ok','logs','Журнал скопирован в буфер обмена');}catch(e){agentLog('warn','logs','Не удалось скопировать через Clipboard API',e.message);}});document.getElementById('downloadLogs')?.addEventListener('click',()=>{const t=agentLogEntries.map(x=>`[${x.time}] [${x.level}] [${x.stage}] ${x.message}\n${x.details}`).join('\n');const u=URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download='CodePath_AI_Agent_Logs.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);agentLog('ok','logs','Файл журнала сформирован');});document.getElementById('clearLogs')?.addEventListener('click',()=>{agentLogEntries=[];try{localStorage.removeItem(AGENT_LOG_KEY)}catch{}renderAgentLogs();agentLog('warn','logs','Журнал очищен пользователем');});document.getElementById('refreshLogs')?.addEventListener('click',()=>{showAIStorage();agentLog('info','storage','Запрошено повторное измерение хранилища');});});
+window.addEventListener('error',e=>agentLog('error','window',e.message,{file:e.filename,line:e.lineno,col:e.colno}));
+window.addEventListener('unhandledrejection',e=>agentLog('error','promise','Необработанное отклонение Promise',e.reason?.stack||e.reason?.message||String(e.reason)));
+agentLog('info','boot','CodePath AI запущен; восстановлен локальный журнал',`Записей: ${agentLogEntries.length}`);
+
+// MineReal Device Bridge integration. The companion app injects bridge-config.js
+// and bridge-client.js when it serves this HTML from its stable localhost origin.
+let deviceBridgeConnected=false, deviceBridgeData=null, deviceRefreshTimer=null, studioPairingCode=null;
+let deviceResource={availableMb:null,totalMb:null,contextWindow:1024,maxTokens:128,maxInputChars:900,autoAllowed:false,tier:'unknown'};
+function fmtMB(value){if(value===null||value===undefined||!Number.isFinite(Number(value)))return'недоступно';const n=Number(value);return n>=1024?(n/1024).toFixed(1)+' ГБ':Math.round(n)+' МБ';}
+function putDeviceValue(id,value){const el=document.getElementById(id);if(el)el.textContent=value===null||value===undefined||value===''?'недоступно':String(value);}
+function accessLabel(access){const mode=String(access?.mode||'standard').toLowerCase();const uid=access?.uid; if(mode==='root'||access?.root_detected)return'Root'+(uid===0?' · UID 0':'');if(mode==='shizuku')return'Shizuku'+(uid===2000?' · ADB/Shell':uid===0?' · Root UID':'');return'Standard Android';}
+function calculateDeviceResource(data){
+ const available=Number(data?.memory?.available_mb);const total=Number(data?.memory?.total_mb);
+ if(Number.isFinite(available)&&available>0){
+  const critical=available<1400;
+  const low=available<2300;
+  deviceResource={availableMb:available,totalMb:Number.isFinite(total)?total:null,contextWindow:low?1024:2048,maxTokens:critical?96:(low?144:256),maxInputChars:critical?700:(low?1100:2200),autoAllowed:available>=2600,tier:critical?'critical':low?'low':available<3600?'balanced':'comfortable'};
+ }else{
+  const rough=Number(navigator.deviceMemory)||0;
+  deviceResource={availableMb:null,totalMb:rough?rough*1024:null,contextWindow:1024,maxTokens:rough>=6?160:112,maxInputChars:rough>=6?1400:800,autoAllowed:rough>=6,tier:rough>=6?'browser-estimate':'unknown'};
+ }
+ return deviceResource;
+}
+function renderDeviceResourcePolicy(){
+ const el=document.getElementById('deviceResourcePolicy');if(!el)return;
+ const r=deviceResource;let memoryText=r.availableMb!==null?`Доступно ${fmtMB(r.availableMb)} RAM`:(r.totalMb!==null?`Браузер сообщает ориентир ${fmtMB(r.totalMb)} общей памяти`:'точный объём свободной RAM неизвестен');
+ let explanation=r.tier==='critical'?'Свободной RAM мало. Автозапуск модели остановлен, чтобы снизить риск выгрузки браузера.':r.tier==='low'?'Ресурсы ограничены: при ручном запуске будет уменьшен контекст и длина ответа.':r.autoAllowed?'Режим допустим для пробного запуска с уменьшенным контекстом.':'Нет достоверных данных для безопасного автозапуска; модель можно запустить вручную после проверки устройства.';
+ el.textContent=`AI-профиль: ${memoryText}. Контекст: ${r.contextWindow} токенов (настройка модели), максимум ответа: ${r.maxTokens} токенов. Целевой бюджет агента — около 1,7 ГБ; это программная цель, а не системная блокировка памяти. ${explanation} Параллельные запросы к AI ограничены одним; физические ядра CPU браузер закрепить не может.`;
+}
+async function refreshDeviceBridge(options={}){
+ const status=document.getElementById('deviceBridgeStatus');
+ try{
+  if(!window.MineRealBridge||!window.MineRealBridge.available||typeof window.MineRealBridge.getDevice!=='function'){
+   deviceBridgeConnected=false;deviceBridgeData=null;calculateDeviceResource(null);
+   const rough=Number(navigator.deviceMemory)||0;
+   status.className='warning';status.textContent='Device Bridge не подключён. Открой CodePath через MineReal Device Bridge. Сейчас доступны только приблизительные браузерные сведения; системные данные CPU/RAM/GPU недоступны.';
+   putDeviceValue('deviceModel','Bridge не подключён');putDeviceValue('deviceRam',rough?`Оценка браузера: ${rough} ГБ`:'не сообщается');putDeviceValue('deviceStorage','только оценка браузера');putDeviceValue('deviceCpu','не доступен');putDeviceValue('deviceGpu','не доступен');putDeviceValue('deviceTemperature','не доступна');putDeviceValue('studioCodeValue','Не подключено');putDeviceValue('studioCodeMeta','Открой сайт внутри MineReal-Info и разреши доступ к Device Bridge.');renderDeviceResourcePolicy();
+   if(!options.silent)agentLog('warn','device-bridge','MineReal Device Bridge не найден',{secureContext:window.isSecureContext,origin:location.origin,deviceMemory:rough||null});
+   return null;
+  }
+  const health=typeof window.MineRealBridge.health==='function'
+   ? await window.MineRealBridge.health()
+   : {ok:true,service:'MineReal-Info',version:window.MineRealBridge.version||'legacy'};
+  const data=window.MineReal?.device?.getInfo
+   ? await window.MineReal.device.getInfo()
+   : await window.MineRealBridge.getDevice();
+  let studioInfo=null;
+  if(window.MineReal?.studio?.getCode) studioInfo=await window.MineReal.studio.getCode();
+  else if(typeof window.MineRealBridge.getStudioCode==='function') studioInfo=await window.MineRealBridge.getStudioCode();
+  studioPairingCode=studioInfo?.code||null;
+  putDeviceValue('studioCodeValue',studioPairingCode||'Код недоступен');
+  putDeviceValue('studioCodeMeta',studioInfo ? ('Выдано приложением '+(studioInfo.app||'MineReal-Info')+' · '+(studioInfo.app_version||'')+' · код этой установки') : 'Обнови MineReal-Info до версии с поддержкой цифрового кода MineReal_Studio.');
+  deviceBridgeConnected=!!health?.ok;deviceBridgeData=data;calculateDeviceResource(data);
+  const d=data.device||{},m=data.memory||{},st=data.storage||{},cpu=data.cpu||{},gpu=data.gpu||{},thermal=data.thermal||{},access=data.access||{};
+  status.className='connected';status.textContent=`Подключено · ${health.service||'MineReal Device Bridge'} ${health.version||''} · режим: ${accessLabel(access)} · обновлено ${new Date(data.updated_at||Date.now()).toLocaleTimeString('ru-RU')}`;
+  putDeviceValue('deviceModel',[d.manufacturer,d.model,'Android '+(d.android_version||'?')].filter(Boolean).join(' · '));
+  putDeviceValue('deviceRam',`${fmtMB(m.available_mb)} / ${fmtMB(m.total_mb)}${m.low_memory?' · Android сообщает low-memory':''}`);
+  putDeviceValue('deviceStorage',`${fmtMB(st.internal_free_mb)} свободно из ${fmtMB(st.internal_total_mb)}`);
+  putDeviceValue('deviceCpu',`${cpu.soc_model||cpu.hardware||d.soc_model||'CPU не определён'} · ${cpu.available_processors||'?'} ядер доступно приложению`);
+  putDeviceValue('deviceGpu',gpu.available?(gpu.renderer||gpu.vendor||'Доступен'):(gpu.error||'не определён'));
+  putDeviceValue('deviceTemperature',thermal.battery_temperature_c!=null?`${thermal.battery_temperature_c} °C · батарея`:'не сообщает Android');
+  renderDeviceResourcePolicy();
+  if(!options.silent)agentLog('ok','device-bridge','Характеристики телефона получены',{
+   model:d.model,ramAvailableMb:m.available_mb,ramTotalMb:m.total_mb,storageFreeMb:st.internal_free_mb,
+   cpu:cpu.soc_model||cpu.hardware,cores:cpu.available_processors,gpu:gpu.renderer,access:accessLabel(access),
+   extended:!!access.extended_diagnostics_available,resourceTier:deviceResource.tier
+  });
+  return data;
+ }catch(e){
+  deviceBridgeConnected=false;deviceBridgeData=null;calculateDeviceResource(null);
+  status.className='error';status.textContent='Ошибка связи с Device Bridge: '+(e?.message||String(e))+'. Проверь, что локальный сервер приложения запущен и сайт открыт через него.';
+  renderDeviceResourcePolicy();agentLog('error','device-bridge','Не удалось получить характеристики телефона',e?.stack||e?.message||String(e));return null;
+ }
+}
+document.getElementById('refreshDevice')?.addEventListener('click',()=>refreshDeviceBridge());
+window.addEventListener('minerealbridge-ready',()=>refreshDeviceBridge());
+
+const courses = [
+{id:"p1",lang:"python",title:"Python 1 — Переменные и типы",desc:"Переменные, числа, строки, bool, print()",theory:"Переменная хранит значение: <code>name = 'Мир'</code>. Основные типы: <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>. Функция <code>print()</code> выводит данные. Преобразование типов: <code>int('12')</code>, <code>str(12)</code>.",task:"Напиши программу, которая создаёт переменную city со строкой и выводит её.",starter:"city = 'Москва'\nprint(city)",check:c=>/city\s*=/.test(c)&&/print\s*\(/.test(c)},
+{id:"p2",lang:"python",title:"Python 2 — Условия и циклы",desc:"if/elif/else, for, while, range()",theory:"Условие <code>if</code> выбирает ветку выполнения. Цикл <code>for</code> перебирает элементы, <code>while</code> работает, пока условие истинно. <code>range(5)</code> создаёт последовательность 0–4. Отступы в Python обязательны.",task:"Выведи числа от 1 до 5 с помощью цикла for.",starter:"for number in range(1, 6):\n    print(number)",check:c=>/for\s+\w+\s+in\s+range/.test(c)&&/print\s*\(/.test(c)},
+{id:"p3",lang:"python",title:"Python 3 — Функции и коллекции",desc:"def, аргументы, list, tuple, dict, set",theory:"Функция объявляется через <code>def</code>, результат возвращается через <code>return</code>. Список <code>list</code> изменяем, кортеж <code>tuple</code> обычно используют для неизменяемых наборов, словарь <code>dict</code> хранит пары ключ–значение, множество <code>set</code> — уникальные элементы.",task:"Создай функцию double(), которая возвращает число, умноженное на 2, и выведи результат для 6.",starter:"def double(number):\n    return number * 2\n\nprint(double(6))",check:c=>/def\s+double\s*\(/.test(c)&&/return/.test(c)&&/print\s*\(/.test(c)},
+{id:"p4",lang:"python",title:"Python 4 — ООП",desc:"Классы, объекты, __init__, методы",theory:"Класс описывает структуру объектов. Экземпляр создаётся вызовом класса. Метод <code>__init__</code> задаёт начальное состояние, <code>self</code> ссылается на текущий объект. Методы — функции внутри класса.",task:"Создай класс Dog с методом bark(), который выводит «Гав!», затем вызови метод.",starter:"class Dog:\n    def bark(self):\n        print('Гав!')\n\ndog = Dog()\ndog.bark()",check:c=>/class\s+Dog/.test(c)&&/def\s+bark/.test(c)&&/\.bark\s*\(/.test(c)},
+{id:"p5",lang:"python",title:"Python 5 — Файлы, JSON и стандартная библиотека",desc:"json, datetime, math, random, os",theory:"Стандартная библиотека входит в Python. <code>math</code> — математические функции, <code>random</code> — случайные значения, <code>datetime</code> — даты и время, <code>json</code> — обмен данными. <code>os</code> предоставляет операции с окружением и путями. В Pyodide файловая система виртуальная.",task:"Импортируй json, создай словарь с ключом name и преобразуй его в JSON-строку через json.dumps().",starter:"import json\nuser = {'name': 'Alex'}\nresult = json.dumps(user)\nprint(result)",check:c=>/import\s+json/.test(c)&&/json\.dumps\s*\(/.test(c)},
+{id:"j1",lang:"javascript",title:"JavaScript 1 — Переменные и типы",desc:"const, let, string, number, boolean",theory:"Используй <code>const</code> для ссылки, которую не переназначают, и <code>let</code> для изменяемой переменной. Типы включают <code>string</code>, <code>number</code>, <code>boolean</code>, <code>undefined</code>, <code>null</code>, <code>object</code> и <code>bigint</code>. Для вывода используй <code>console.log()</code>.",task:"Создай переменную userName и выведи её через console.log().",starter:"const userName = 'Мир';\nconsole.log(userName);",check:c=>/(const|let)\s+userName/.test(c)&&/console\.log\s*\(/.test(c)},
+{id:"j2",lang:"javascript",title:"JavaScript 2 — Условия и циклы",desc:"if/else, for, while, массивы",theory:"Условия работают через <code>if</code>/<code>else</code>. Цикл <code>for</code> удобен для счётчика, <code>for...of</code> — для элементов массива. Массивы создаются как <code>[1, 2, 3]</code>.",task:"Выведи числа от 1 до 5 с помощью цикла for.",starter:"for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}",check:c=>/for\s*\(/.test(c)&&/console\.log\s*\(/.test(c)},
+{id:"j3",lang:"javascript",title:"JavaScript 3 — Функции и объекты",desc:"function, arrow functions, object, array",theory:"Функцию можно объявить через <code>function sum(a,b)</code> или стрелочную форму <code>const sum = (a,b) => a+b</code>. Объект хранит свойства: <code>{name: 'Ada'}</code>. Доступ к свойству: <code>obj.name</code>.",task:"Создай функцию multiply(a, b), возвращающую произведение, и выведи multiply(3, 4).",starter:"function multiply(a, b) {\n  return a * b;\n}\nconsole.log(multiply(3, 4));",check:c=>/(function\s+multiply|multiply\s*=\s*\([^)]*\)\s*=>)/.test(c)&&/return/.test(c)&&/console\.log/.test(c)},
+{id:"j4",lang:"javascript",title:"JavaScript 4 — DOM и события",desc:"querySelector, textContent, addEventListener",theory:"DOM — объектное представление HTML-документа. <code>document.querySelector()</code> находит элемент, <code>textContent</code> меняет текст, <code>addEventListener()</code> подписывает на событие. В этой песочнице DOM страницы курса намеренно не передаётся исполняемому коду.",task:"Напиши пример подписки на событие click с помощью addEventListener (проверяется по ключевым словам).",starter:"const button = document.querySelector('#myButton');\nbutton.addEventListener('click', () => {\n  console.log('Нажато');\n});",check:c=>/addEventListener\s*\(/.test(c)&&/click/.test(c)},
+{id:"j5",lang:"javascript",title:"JavaScript 5 — Promise, async/await и fetch",desc:"Асинхронность, обработка ошибок, API",theory:"<code>Promise</code> представляет будущий результат. <code>async</code> объявляет асинхронную функцию, <code>await</code> ожидает Promise. <code>fetch(url)</code> отправляет HTTP-запрос; ответ часто преобразуют через <code>response.json()</code>. В офлайн-режиме сетевой запрос может быть недоступен.",task:"Создай async-функцию loadData и используй внутри await Promise.resolve(42).",starter:"async function loadData() {\n  const value = await Promise.resolve(42);\n  console.log(value);\n}\nloadData();",check:c=>/async\s+function\s+loadData/.test(c)&&/await/.test(c)&&/Promise\.resolve/.test(c)},
+{id:"b1",lang:"javascript",title:"Связка — Python, JavaScript и JSON",desc:"Обмен данными, API, сериализация",theory:"Python и JavaScript часто взаимодействуют через HTTP API. Клиент отправляет JSON, сервер на Python разбирает его через <code>json.loads()</code> и возвращает ответ через <code>json.dumps()</code>. В браузере JavaScript использует <code>JSON.stringify()</code> и <code>JSON.parse()</code>. Это архитектурная схема; сервер в этом автономном файле не запускается.",task:"Создай объект и преобразуй его в JSON-строку через JSON.stringify().",starter:"const profile = {name: 'Alex', level: 1};\nconst payload = JSON.stringify(profile);\nconsole.log(payload);",check:c=>/JSON\.stringify\s*\(/.test(c)},
+{id:"x1",lang:"python",title:"Дополнение — requests и NumPy",desc:"Внешние библиотеки: назначение и ограничения",theory:"<code>requests</code> упрощает HTTP-запросы в обычном Python: <code>requests.get(url)</code>. В Pyodide доступность пакетов зависит от сборки и сети; для браузерных запросов часто используют JavaScript <code>fetch</code>. <code>NumPy</code> — библиотека массивов и векторных вычислений; она может потребовать загрузки дополнительных WASM-пакетов. Тяжёлые вычисления и большие массивы на телефоне могут работать медленно. Этот урок объясняет API, но не устанавливает тяжёлые пакеты автоматически.",task:"Напиши импорт requests и вызов requests.get в виде учебного примера. Не запускай сетевой запрос без необходимости.",starter:"# Пример для обычного Python:\n# import requests\n# response = requests.get('https://example.com')\n# print(response.status_code)\n\n# NumPy:\n# import numpy as np\n# values = np.array([1, 2, 3])\n# print(values.mean())",check:c=>/requests/.test(c)&&/numpy|np\.array/.test(c)}
+];
+const lessonsEl=document.getElementById('lessons'), editor=document.getElementById('editor'), language=document.getElementById('language'), output=document.getElementById('output'), statusEl=document.getElementById('runtimeStatus');
+let activeLesson=null, pyWorker=null, pyReady=false, pyLoading=false, pyPending=null;
+const voiceStatus=document.getElementById("voiceStatus");
+function renderLessons(){courses.forEach(item=>{const b=document.createElement('button');b.className='lesson';b.innerHTML=`${item.title}<small>${item.desc}</small>`;b.addEventListener('click',()=>loadLesson(item));lessonsEl.appendChild(b);});}
+function loadLesson(item){activeLesson=item;activeTaskStarted=Date.now();recentFailedRuns=0;recordLearningEvent("lesson_open",{lessonId:item.id,title:item.title,language:item.lang});language.value=item.lang;document.getElementById('lessonTitle').textContent=item.title;document.getElementById('theory').innerHTML=item.theory;document.getElementById('task').textContent='Задача: '+item.task;editor.value='';document.getElementById('hintBox').hidden=true;document.getElementById('hintBox').textContent='';document.getElementById('exampleBtn').textContent='Показать пример';output.textContent='Урок открыт. Редактор пустой — напиши решение самостоятельно.';}
+language.addEventListener('change',()=>{activeLesson=null;document.getElementById('lessonTitle').textContent='Редактор кода';document.getElementById('theory').textContent='Выбран язык '+(language.value==='python'?'Python':'JavaScript')+'. Выбери урок или введи свой код.';document.getElementById('task').textContent='';editor.value='';});
+function appendOutput(s){output.textContent=String(s);output.scrollTop=output.scrollHeight;recordLearningEvent("console_output",{text:String(s).slice(0,1800)});maybeOfferHelp(String(s));}
+function ensurePythonWorker(){
+ if(pyWorker)return;
+ const workerCode=`
+ let pyodide=null;
+ self.onmessage=async(e)=>{
+  const d=e.data;
+  if(d.type==='init'){
+   try{
+    importScripts('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js');
+    pyodide=await loadPyodide({stdout:(s)=>self.postMessage({type:'stdout',text:s}),stderr:(s)=>self.postMessage({type:'stderr',text:s})});
+    self.postMessage({type:'ready'});
+   }catch(err){self.postMessage({type:'initerror',error:String(err)})}
+  }else if(d.type==='run'&&pyodide){
+   try{
+    await pyodide.runPythonAsync(d.code);
+    self.postMessage({type:'done'});
+   }catch(err){self.postMessage({type:'runerror',error:String(err)})}
+  }
+ };`;
+ const blob=new Blob([workerCode],{type:'text/javascript'});
+ pyWorker=new Worker(URL.createObjectURL(blob));
+ pyWorker.onmessage=(e)=>{
+  const d=e.data;
+  if(d.type==='stdout')output.textContent+=(output.textContent?'\n':'')+d.text;
+  if(d.type==='stderr')output.textContent+='\n'+d.text;
+  if(d.type==='ready'){pyReady=true;pyLoading=false;statusEl.textContent='Python готов к запуску.';statusEl.className='status success';if(pyPending){const code=pyPending;pyPending=null;runPython(code);}}
+  if(d.type==='initerror'){pyLoading=false;pyReady=false;statusEl.innerHTML='Не удалось загрузить Pyodide. Проверь интернет и перезагрузи страницу. В качестве облегчённой альтернативы можно подключить Skulpt (поддержка библиотек ограничена).';statusEl.className='status error';appendOutput('Ошибка загрузки Python: '+d.error);}
+  if(d.type==='runerror'){appendOutput(output.textContent+'\nTraceback / Python Error:\n'+d.error+'\nПроверь синтаксис, отступы и имена переменных.');}
+ };
+ pyWorker.onerror=(e)=>{pyLoading=false;statusEl.textContent='Ошибка Web Worker: '+e.message;statusEl.className='status error';};
+}
+function runPython(code){
+ if(!pyReady){pyPending=code;return;}
+ pyWorker.postMessage({type:'run',code});
+}
+function initPython(){if(pyReady||pyLoading)return;pyLoading=true;statusEl.textContent='Загрузка Python… Первая загрузка Pyodide может занять 10–20 секунд и более.';statusEl.className='status';ensurePythonWorker();pyWorker.postMessage({type:'init'});}
+async function runJS(code){
+ const logs=[];const fakeConsole={log:(...a)=>logs.push(a.map(formatValue).join(' ')),info:(...a)=>logs.push(a.map(formatValue).join(' ')),warn:(...a)=>logs.push('Предупреждение: '+a.map(formatValue).join(' ')),error:(...a)=>logs.push('Ошибка: '+a.map(formatValue).join(' '))};
+ const safePrint=(...a)=>logs.push(a.map(formatValue).join(' '));
+ try{
+  const fn=new Function('console','print',`"use strict"; return (async()=>{${code}\n})();`);
+  await fn(fakeConsole,safePrint);
+  appendOutput(logs.length?logs.join('\n'):'Код выполнен. (Нет вывода)');
+ }catch(err){appendOutput('JavaScript Error: '+(err&&err.message?err.message:String(err))+'\nПодсказка: проверь синтаксис, названия переменных и скобки.');}
+}
+function formatValue(v){if(typeof v==='string')return v;try{return JSON.stringify(v)}catch{return String(v)}}
+document.getElementById('runBtn').addEventListener('click',async()=>{
+ const code=editor.value;appendOutput('Выполнение…');
+ document.getElementById('runBtn').disabled=true;
+ try{if(language.value==='python'){initPython();if(pyReady)runPython(code);else pyPending=code;}else await runJS(code);}
+ finally{setTimeout(()=>document.getElementById('runBtn').disabled=false,250);}
+});
+document.getElementById('clearBtn').addEventListener('click',()=>{editor.value='';editor.focus();});
+document.getElementById('exampleBtn').addEventListener('click',()=>{if(!activeLesson){appendOutput('Сначала выбери урок.');return;}editor.value=activeLesson.starter;editor.dataset.exampleShown='1';document.getElementById('exampleBtn').textContent='Пример загружен';editor.focus();});
+document.getElementById('hintBtn').addEventListener('click',()=>{if(!activeLesson)return;const box=document.getElementById('hintBox');box.hidden=false;box.textContent='Подумай, какие команды нужны для этой задачи. Найди в теории названия команд и попробуй написать сначала одну строку. Не копируй готовое решение: запусти небольшой фрагмент и посмотри, что он делает.';});
+document.getElementById('speakBtn').addEventListener('click',()=>{if(!('speechSynthesis' in window)){voiceStatus.textContent='В этом браузере нет встроенного синтеза речи. Проверь настройки голосового движка Android.';return;}speechSynthesis.cancel();const plain=document.getElementById('theory').innerText;const task=document.getElementById('task').innerText;const utter=new SpeechSynthesisUtterance(document.getElementById('lessonTitle').innerText+'. Объяснение. '+plain+'. Практическое задание. '+task);utter.lang='ru-RU';utter.rate=0.88;utter.onstart=()=>voiceStatus.textContent='Идёт озвучивание урока…';utter.onend=()=>voiceStatus.textContent='Озвучивание завершено.';utter.onerror=()=>voiceStatus.textContent='Не удалось запустить голос. Проверь русские голоса Android.';speechSynthesis.speak(utter);});
+document.getElementById('stopSpeakBtn').addEventListener('click',()=>{if('speechSynthesis' in window)speechSynthesis.cancel();voiceStatus.textContent='Озвучивание остановлено.';});
+document.getElementById('clearOutput').addEventListener('click',()=>appendOutput('Консоль очищена.'));
+document.getElementById('checkBtn').addEventListener('click',()=>{
+ if(!activeLesson){appendOutput('Сначала выбери урок, чтобы проверить задачу.');return;}
+ if(!editor.value.trim()){appendOutput('Редактор пустой. Сначала напиши своё решение. Если застрял — нажми «Подсказка».');return;}
+ if(activeLesson.lang!==language.value){appendOutput('Для этого урока выбери язык '+activeLesson.lang+'.');return;}
+ const ok=activeLesson.check(editor.value);
+ appendOutput(ok?'✓ Проверка пройдена по ключевым элементам кода. Теперь запусти программу и проверь результат.':'Пока не найдено всё необходимое. Сверься с условием и теорией. Проверка учебная и не заменяет полноценные тесты.');
+});
+
+// Локальная история действий: хранится только на устройстве и передаётся только локальной модели.
+const LEARNING_KEY='codepath_local_learning_v1';
+let learningEvents=[];try{learningEvents=JSON.parse(localStorage.getItem(LEARNING_KEY)||'[]');if(!Array.isArray(learningEvents))learningEvents=[];}catch{learningEvents=[];}
+let activeTaskStarted=Date.now(), recentFailedRuns=0, lastNudgeAt=0, editorSaveTimer=null;
+function recordLearningEvent(type,data={}){agentLog('info','learning','Событие обучения: '+type,data);
+ const entry={time:new Date().toISOString(),type,lesson:activeLesson?.id||null,data};
+ learningEvents.push(entry);if(learningEvents.length>350)learningEvents=learningEvents.slice(-350);
+ try{localStorage.setItem(LEARNING_KEY,JSON.stringify(learningEvents));}catch{}
+ updateLiveContext();
+}
+function updateLiveContext(){const el=document.getElementById('liveContextLine');if(el)el.textContent=`Контекст активен · урок: ${activeLesson?.title||'не выбран'} · событий сохранено: ${learningEvents.length} · Device Bridge: ${deviceBridgeConnected?'подключён':'не подключён'} · хранение: только на этом устройстве`}
+editor.addEventListener('input',()=>{clearTimeout(editorSaveTimer);editorSaveTimer=setTimeout(()=>recordLearningEvent('editor_changed',{language:language.value,code:editor.value.slice(0,5000),length:editor.value.length}),650);});
+language.addEventListener('change',()=>recordLearningEvent('language_changed',{language:language.value}));
+document.getElementById('hintBtn').addEventListener('click',()=>recordLearningEvent('hint_requested'));
+document.getElementById('exampleBtn').addEventListener('click',()=>recordLearningEvent('example_requested'));
+document.getElementById('checkBtn').addEventListener('click',()=>recordLearningEvent('solution_check',{code:editor.value.slice(0,5000)}));
+document.getElementById('runBtn').addEventListener('click',()=>recordLearningEvent('code_run',{language:language.value,code:editor.value.slice(0,5000)}));
+document.getElementById('exportLearningData').addEventListener('click',()=>{const payload={format:'CodePath learning context v1',exportedAt:new Date().toISOString(),events:learningEvents,chatHistory:localAIHistory,tutorMode:aiTutorMode,lesson:activeLesson?{id:activeLesson.id,title:activeLesson.title,language:activeLesson.lang}:null};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='CodePath_learning_backup.json';a.click();URL.revokeObjectURL(url);});
+document.getElementById('clearLearningData').addEventListener('click',()=>{learningEvents=[];try{localStorage.removeItem(LEARNING_KEY)}catch{}updateLiveContext();aiSetStatus('Локальная история действий очищена. Модель и её кэш не затронуты.');});
+// Плавающее окно использует те же элементы чата, что и панель настройки модели.
+const drawer=document.getElementById('aiDrawer'),drawerBody=document.getElementById('aiDrawerBody');
+['aiModeInfo','aiTutorModeBtn','aiLessonHelpBtn','aiReviewCodeBtn','aiQuestion','aiAskBtn','aiClearBtn','voiceTools','voiceInputStatus','aiAnswer'].forEach(id=>{const el=document.getElementById(id);if(el)drawerBody.appendChild(el);});
+const questionLabel=document.createElement('label');questionLabel.textContent='Сообщение локальному преподавателю';questionLabel.htmlFor='aiQuestion';questionLabel.className='muted';drawerBody.insertBefore(questionLabel,document.getElementById('aiQuestion'));
+function openAIChat(){drawer.classList.add('open');document.getElementById('aiFab').setAttribute('aria-expanded','true');document.getElementById('aiNudge').style.display='none';updateLiveContext();}
+document.getElementById('aiFab').addEventListener('click',()=>drawer.classList.contains('open')?drawer.classList.remove('open'):openAIChat());
+document.getElementById('closeAiDrawer').addEventListener('click',()=>drawer.classList.remove('open'));
+document.getElementById('openFromNudge').addEventListener('click',openAIChat);
+// Помощь не навязывается: предложение появляется только после повторных запусков с ошибками.
+function maybeOfferHelp(text){const hasError=/Traceback|Error:|SyntaxError|NameError|TypeError|IndentationError|ошибка|не удалось/i.test(text);if(hasError)recentFailedRuns++;else if(/Код выполнен|Проверка пройдена|✓/.test(text))recentFailedRuns=0;const elapsed=Date.now()-activeTaskStarted;if(recentFailedRuns>=3&&elapsed>45000&&Date.now()-lastNudgeAt>120000){lastNudgeAt=Date.now();document.getElementById('aiNudge').style.display='block';recordLearningEvent('help_offer_shown',{failedRuns:recentFailedRuns});}}
+
+// Локальная языковая модель WebLLM. Библиотека и модель загружаются автоматически по запросу пользователя.
+let localAIEngine=null, localAILoading=false, aiTutorMode=false;
+const CHAT_KEY='codepath_local_chat_v1';let localAIHistory=[];try{localAIHistory=JSON.parse(localStorage.getItem(CHAT_KEY)||'[]');if(!Array.isArray(localAIHistory))localAIHistory=[];}catch{localAIHistory=[];}
+function saveLocalChat(){try{localStorage.setItem(CHAT_KEY,JSON.stringify(localAIHistory.slice(-80)));}catch{}}
+const aiStatus=document.getElementById('aiStatus'), aiProgress=document.getElementById('aiProgress'), aiAskBtn=document.getElementById('aiAskBtn'), aiAnswer=document.getElementById('aiAnswer');
+function setAgentButtonState(state,label){const b=document.getElementById('aiFab');if(!b)return;b.classList.remove('loading','ready','error','idle');b.classList.add(state);const t=document.getElementById('aiFabState');if(t)t.textContent=label||({loading:'загрузка…',ready:'готов',error:'ошибка',idle:'не готов'}[state]||state);b.setAttribute('aria-label','AI-Agent: '+(label||state));}
+let lastModelProgressAt=0,lastModelProgressText='',modelPhaseStarted=0,modelWatchdog=null;
+function aiSetStatus(message,isError=false){aiStatus.textContent=message;aiStatus.className='status '+(isError?'error':'');agentLog(isError?'error':'info','status',message);}
+async function showAIStorage(){
+ try{
+  if(!navigator.storage||!navigator.storage.estimate){document.getElementById('aiStorage').textContent='Браузер не предоставляет оценку хранилища.';return;}
+  const e=await navigator.storage.estimate();agentLog('info','storage','Оценка хранилища браузера',{usageBytes:e.usage,quotaBytes:e.quota,usageMB:Math.round((e.usage||0)/1048576),quotaMB:Math.round((e.quota||0)/1048576)});
+  const mb=n=>Math.round((n||0)/1024/1024);
+  document.getElementById('aiStorage').textContent=`Хранилище браузера: занято примерно ${mb(e.usage)} МБ из доступных ${mb(e.quota)} МБ.`;
+  if(navigator.storage.persist){const granted=await navigator.storage.persist();agentLog(granted?'ok':'warn','storage',granted?'Постоянное хранение разрешено браузером':'Постоянное хранение не гарантировано');document.getElementById('aiStorage').textContent+=granted?' Браузер разрешил постоянное хранение.':' Постоянное хранение не гарантировано: браузер может удалить кэш.';}
+ }catch(e){document.getElementById('aiStorage').textContent='Не удалось проверить хранилище: '+e.message;}
+}
+async function loadLocalAI(manual=false){
+ if(localAIEngine||localAILoading)return;
+ if(!window.isSecureContext){setAgentButtonState('error','нужен HTTPS');aiSetStatus('Для WebGPU нужен безопасный контекст. Открой страницу через MineReal Device Bridge (localhost) или HTTPS.',true);return;}
+ if(!navigator.gpu){setAgentButtonState('error','нет WebGPU');aiSetStatus('WebGPU недоступен в этом браузере или на этом устройстве. Локальная модель пока не может запуститься.',true);return;}
+ await refreshDeviceBridge({silent:true});
+ const policy=deviceResource;
+ if(!policy.autoAllowed&&!manual){setAgentButtonState('idle','ждёт ресурсов');aiSetStatus('Автозапуск модели пропущен: недостаточно свободной RAM или браузер не сообщил надёжные показатели. Обнови характеристики устройства; ручной запуск остаётся доступен.',false);agentLog('warn','autostart','Автозапуск AI остановлен политикой ресурсов',policy);return;}
+ if(!policy.autoAllowed&&manual){const detail=policy.availableMb!==null?`Доступно RAM: ${Math.round(policy.availableMb)} МБ.`:'Точный объём свободной RAM неизвестен.';if(!confirm('Устройство не прошло проверку ресурсов. '+detail+' Загрузка модели может замедлить браузер или привести к его закрытию. Продолжить вручную?')){agentLog('warn','install','Пользователь отменил запуск модели из-за ограничений ресурсов',policy);return;}}
+ localAILoading=true;setAgentButtonState('loading','загрузка…');modelPhaseStarted=Date.now();lastModelProgressAt=Date.now();lastModelProgressText='Подготовка';clearInterval(modelWatchdog);modelWatchdog=setInterval(()=>{if(!localAILoading)return;const silent=Math.round((Date.now()-lastModelProgressAt)/1000);if(silent>=35){const msg='Нет нового сообщения о прогрессе уже '+silent+' сек. Это не доказывает остановку: WebLLM может скачивать большой файл без частых callback. Возможные причины: медленная сеть/CDN, ожидание ответа сервера, распаковка/компиляция GPU или нехватка памяти. Последний этап: '+lastModelProgressText;const last=agentLogEntries[agentLogEntries.length-1];if(!last||last.message!==msg)agentLog('warn','diagnostics-stall',msg,{phase:lastModelProgressText,silentSeconds:silent,online:navigator.onLine,connection:navigator.connection?.effectiveType||'неизвестно',deviceMemory:navigator.deviceMemory||'не сообщается',bridgeRamAvailableMb:deviceResource.availableMb});}},15000);agentLog('info','install','Начата загрузка локального AI-Agent с адаптивным профилем ресурсов',{secureContext:window.isSecureContext,webgpu:!!navigator.gpu,model:'Llama-3.2-1B-Instruct-q4f16_1-MLC',...policy});document.getElementById('aiInstallBtn').disabled=true;aiProgress.style.width='0%';aiSetStatus('Загружаю WebLLM и модель. Параметры контекста выбраны по свободной памяти устройства.');
+ try{
+  lastModelProgressText='Загрузка JavaScript-библиотеки WebLLM';agentLog('info','engine','ЭТАП 1/3: загрузка библиотеки WebLLM');const webllm=await importWebLLMWithFallback();lastModelProgressAt=Date.now();agentLog('ok','engine','Библиотека WebLLM загружена',Object.keys(webllm).filter(k=>['MLCEngine','CreateMLCEngine','prebuiltAppConfig'].includes(k)));
+  const modelId='Llama-3.2-1B-Instruct-q4f16_1-MLC';
+  if(!webllm.MLCEngine)throw new Error('В версии WebLLM не найден MLCEngine: нельзя безопасно задать ограничение контекста.');
+  const engine=new webllm.MLCEngine({
+   appConfig:{...webllm.prebuiltAppConfig,cacheBackend:'indexeddb'},
+   initProgressCallback:(p)=>{
+    const text=p&&p.text? p.text:'Загрузка компонентов модели…';lastModelProgressAt=Date.now();lastModelProgressText=text;agentLog('info','model-progress',text,{progress:p?.progress,text:p?.text});
+    const match=text.match(/(\d+(?:\.\d+)?)\s*%/);if(match)aiProgress.style.width=Math.max(0,Math.min(100,Number(match[1])))+'%';aiSetStatus(text);
+   }
+  });
+  // ChatConfig.context_window_size is passed to reload(), not to the factory config.
+  await engine.reload(modelId,{context_window_size:policy.contextWindow});
+  localAIEngine=engine;
+  clearInterval(modelWatchdog);setAgentButtonState('ready','готов');agentLog('ok','model','Модель успешно инициализирована с адаптивным контекстом',{contextWindow:policy.contextWindow,maxTokens:policy.maxTokens,resourceTier:policy.tier});aiProgress.style.width='100%';aiSetStatus('Локальный ИИ готов. Контекст: '+policy.contextWindow+' токенов; лимит ответа: '+policy.maxTokens+'. Целевой бюджет 1,7 ГБ не является жёстким системным ограничением.');aiAskBtn.disabled=false;document.getElementById('aiTutorModeBtn').disabled=false;document.getElementById('aiLessonHelpBtn').disabled=false;document.getElementById('aiReviewCodeBtn').disabled=false;if(activeLesson){aiAnswer.textContent='Я готов помогать с уроком «'+activeLesson.title+'». Можешь включить обучение с ИИ или попросить разобрать тему.';}
+  try{const gpuVendor=await localAIEngine.getGPUVendor?.();const maxBuffer=await localAIEngine.getMaxStorageBufferBindingSize?.();agentLog('info','gpu','Сведения о GPU WebLLM',{vendor:gpuVendor||'не сообщается',maxStorageBufferBindingSize:maxBuffer||null});}catch(e){agentLog('warn','gpu','Не удалось получить дополнительные сведения WebGPU',e?.message||String(e));}
+  await showAIStorage();
+ }catch(e){clearInterval(modelWatchdog);setAgentButtonState('error','ошибка');agentLog('error','install','Сбой загрузки или запуска модели',e?.stack||e?.message||String(e));localAIEngine=null;aiAskBtn.disabled=true;document.getElementById('aiTutorModeBtn').disabled=true;document.getElementById('aiLessonHelpBtn').disabled=true;document.getElementById('aiReviewCodeBtn').disabled=true;aiSetStatus('Не удалось загрузить движок или модель. '+(e&&e.message?e.message:String(e))+'\nПроверь интернет, HTTPS, поддержку WebGPU и доступную память. Подробности записаны в Logs.',true);aiAnswer.textContent=e&&e.details?e.details:String(e);aiProgress.style.width='0%';}
+ finally{localAILoading=false;clearInterval(modelWatchdog);document.getElementById('aiInstallBtn').disabled=false;}
+}
+async function importWebLLMWithFallback(){
+ const sources=[
+  'https://esm.run/@mlc-ai/web-llm@0.2.87',
+  'https://esm.sh/@mlc-ai/web-llm@0.2.87',
+  'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm'
+ ];
+ const failures=[];
+ for(const url of sources){try{agentLog('info','cdn','Пробую источник библиотеки',url);aiSetStatus('Загружаю библиотеку WebLLM: '+new URL(url).hostname+'…');const mod=await Promise.race([import(url),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Тайм-аут ожидания ESM-модуля: 25 секунд. Запрос не вернул модуль.')),25000))]);if(!mod.CreateMLCEngine)throw new Error('В модуле нет CreateMLCEngine');agentLog('ok','cdn','Источник библиотеки доступен',url);return mod;}catch(err){agentLog('error','cdn','Источник библиотеки не загрузился',url+'\n'+(err&&err.stack?err.stack:err&&err.message?err.message:String(err)));failures.push(url+'\n'+(err&&err.message?err.message:String(err)));}}
+ const error=new Error('Не удалось загрузить WebLLM ни с одного CDN.');error.details=failures.join('\n\n');throw error;
+}
+document.getElementById('aiInstallBtn').addEventListener('click',()=>loadLocalAI(true));
+document.getElementById('aiUnloadBtn').addEventListener('click',async()=>{agentLog('warn','memory','Пользователь запросил выгрузку модели из активной памяти');if(localAIEngine){try{await localAIEngine.unload();}catch{} localAIEngine=null;}aiAskBtn.disabled=true;setAgentButtonState('idle','не готов');document.getElementById('aiTutorModeBtn').disabled=true;document.getElementById('aiLessonHelpBtn').disabled=true;document.getElementById('aiReviewCodeBtn').disabled=true;aiSetStatus('Модель выгружена из активной памяти страницы. Кэш модели сохранён; при следующем открытии сайт попробует запустить её снова.');});
+document.getElementById('aiClearBtn').addEventListener('click',()=>{localAIHistory=[];saveLocalChat();aiAnswer.textContent='История диалога очищена.';});
+async function askTutor(prompt){if(!localAIEngine){aiAnswer.textContent='Локальный преподаватель ещё загружается.';return;}document.getElementById('aiQuestion').value=prompt;aiAskBtn.click();}
+document.getElementById('aiTutorModeBtn').addEventListener('click',()=>{aiTutorMode=!aiTutorMode;document.getElementById('aiTutorModeBtn').textContent=aiTutorMode?'Вернуться к обычным урокам':'Перейти на обучение с ИИ';document.getElementById('aiModeInfo').textContent=aiTutorMode?'Режим обучения с ИИ включён: агент будет вести тебя по шагам, задавать вопросы и помогать разбирать ошибки. Выбери урок и попроси начать занятие.':'Обычный режим: ты проходишь уроки самостоятельно и обращаешься к агенту по необходимости.';});
+document.getElementById('aiLessonHelpBtn').addEventListener('click',()=>{if(!activeLesson){aiAnswer.textContent='Сначала выбери урок.';return;}askTutor('Объясни текущий урок с самого начала простыми словами. Разбей объяснение на короткие шаги и начни с первого. В конце задай мне один простой вопрос, но пока не давай ответ на задачу.');});
+document.getElementById('aiReviewCodeBtn').addEventListener('click',()=>{askTutor('Посмотри мой код и сначала оцени, что в нём уже получается. Не перечисляй ошибки сразу. Спроси, хочу ли я получить наводку, если заметишь проблему.');});
+// Голосовой ввод через Web Speech API (если его предоставляет браузер Android).
+let speechRecognition=null;
+const voiceStatusEl=document.getElementById('voiceInputStatus');
+document.getElementById('voiceRecordBtn').addEventListener('click',()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){voiceStatusEl.textContent='Распознавание речи недоступно в этом браузере. Можно использовать голосовой ввод клавиатуры Android.';agentLog('warn','voice-input','Web Speech Recognition API недоступен');return;}try{if(speechRecognition)speechRecognition.abort();speechRecognition=new SR();speechRecognition.lang='ru-RU';speechRecognition.interimResults=true;speechRecognition.continuous=false;speechRecognition.onstart=()=>{voiceStatusEl.textContent='🎙️ Слушаю… говори после сигнала браузера.';agentLog('info','voice-input','Начата запись речи');};speechRecognition.onresult=e=>{let text='';for(let i=e.resultIndex;i<e.results.length;i++)text+=e.results[i][0].transcript;document.getElementById('aiQuestion').value=text;};speechRecognition.onerror=e=>{voiceStatusEl.textContent='Не удалось распознать речь: '+e.error;agentLog('error','voice-input','Ошибка распознавания речи',e.error);};speechRecognition.onend=()=>{voiceStatusEl.textContent='Распознавание завершено. Проверь текст и нажми «Отправить вопрос».';agentLog('ok','voice-input','Распознавание завершено');};speechRecognition.start();}catch(e){voiceStatusEl.textContent='Не удалось начать запись: '+e.message;agentLog('error','voice-input','Не удалось запустить распознавание',e.message);}});
+document.getElementById('voiceSpeakBtn').addEventListener('click',()=>{if(!('speechSynthesis' in window)){voiceStatusEl.textContent='Синтез речи недоступен в браузере.';return;}const text=document.getElementById('aiAnswer').innerText.trim();if(!text)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ru-RU';u.rate=.96;const voices=speechSynthesis.getVoices();const ru=voices.find(v=>v.lang&&v.lang.toLowerCase().startsWith('ru'));if(ru)u.voice=ru;u.onstart=()=>voiceStatusEl.textContent='🔊 Агент озвучивает ответ системным русским голосом.';u.onend=()=>voiceStatusEl.textContent='Озвучивание ответа завершено.';u.onerror=()=>voiceStatusEl.textContent='Системный голос не смог озвучить ответ.';speechSynthesis.speak(u);agentLog('info','voice-output','Запрошено озвучивание ответа', {voice:ru?.name||'голос по умолчанию'});});
+document.getElementById('voiceStopBtn').addEventListener('click',()=>{if(speechRecognition)try{speechRecognition.abort()}catch{}if('speechSynthesis'in window)speechSynthesis.cancel();voiceStatusEl.textContent='Голосовые операции остановлены.';});
+aiAskBtn.addEventListener('click',async()=>{
+ const rawQuestion=document.getElementById('aiQuestion').value.trim();if(!rawQuestion||!localAIEngine)return;const q=rawQuestion.slice(0,Math.min(1000,deviceResource.maxInputChars));if(rawQuestion.length>q.length)agentLog('warn','inference','Вопрос сокращён до безопасного размера контекста',{originalChars:rawQuestion.length,usedChars:q.length});agentLog('info','inference','Отправлен запрос локальной модели',{chars:q.length,lesson:activeLesson?.id,mode:aiTutorMode?'tutor':'normal',contextEvents:learningEvents.length,historyMessages:localAIHistory.length,resourceTier:deviceResource.tier});
+ aiAskBtn.disabled=true;aiAnswer.textContent='Думаю…';
+ localAIHistory.push({role:'user',content:q});saveLocalChat();
+ const lessonContext=activeLesson?'\nТекущий урок: '+activeLesson.title+'. Язык: '+activeLesson.lang+'. Теория: '+activeLesson.theory.replace(/<[^>]*>/g,'')+'. Задача: '+activeLesson.task+'.':'';
+ const modeRules=aiTutorMode?'\nРЕЖИМ ОБУЧЕНИЯ С ИИ: веди занятие как терпеливый наставник. Не вываливай всю тему сразу. Давай один небольшой шаг за раз, задавай короткие проверочные вопросы, жди ответа ученика, объясняй ошибки доброжелательно. Не показывай полное решение задачи, пока ученик явно не попросит.':'\nОбычный режим: отвечай на конкретный вопрос и не перехватывай весь урок.';
+ const codeContext='\nКод ученика сейчас:\n'+(editor.value||'(редактор пуст)').slice(0,deviceResource.maxInputChars)+'\nТекущий вывод консоли:\n'+(output.textContent||'(пока нет вывода)').slice(0,500)+'\nПоследние действия ученика (локальная история):\n'+learningEvents.slice(-5).map(e=>e.time+' | '+e.type+' | '+JSON.stringify(e.data).slice(0,120)).join('\n');
+ const deviceContext=deviceBridgeConnected&&deviceBridgeData?('\nПрофиль телефона из MineReal Device Bridge: RAM свободно '+(deviceBridgeData.memory?.available_mb??'неизвестно')+' МБ; RAM всего '+(deviceBridgeData.memory?.total_mb??'неизвестно')+' МБ; CPU '+(deviceBridgeData.cpu?.soc_model||deviceBridgeData.cpu?.hardware||'неизвестен')+'; доступных CPU-ядер '+(deviceBridgeData.cpu?.available_processors??'неизвестно')+'; GPU '+(deviceBridgeData.gpu?.renderer||'неизвестен')+'. Адаптируй длину ответа под слабое устройство.'):'\nMineReal Device Bridge не подключён; не делай предположений о характеристиках телефона.';
+ const baseSystem='Ты русскоязычный преподаватель программирования для начинающего ученика в CodePath / MineReal_Studio. Твоя специализация — Python 3 и современный JavaScript. Объясняй максимально понятным русским языком, расшифровывай каждый новый термин и показывай маленькие примеры. Учи переменным, типам, условиям, циклам, функциям, коллекциям, ООП, модулям, файлам, JSON, HTTP, API, async/await, DOM и событиям. Не указывай на ошибки сразу и не перебивай самостоятельный поиск. Если ученик прямо просит проверить/помочь или история показывает длительные повторные затруднения, предложи мягкую наводку. Не раскрывай конкретную ошибку без запроса ученика или его согласия на подсказку. Не выдавай готовое решение учебной задачи сразу: сначала подсказка и один следующий шаг. Не выдумывай результаты запуска. Будь точным и признавай неопределённость.';
+ const messages=[{role:'system',content:baseSystem+lessonContext+modeRules+deviceContext+codeContext},...localAIHistory.slice(-3).map(m=>({role:m.role,content:String(m.content).slice(-260)}))];
+ try{const result=await localAIEngine.chat.completions.create({messages,temperature:0.35,max_tokens:deviceResource.maxTokens});const answer=result.choices?.[0]?.message?.content||'Модель не вернула текст.';localAIHistory.push({role:'assistant',content:answer});if(localAIHistory.length>16)localAIHistory=localAIHistory.slice(-16);saveLocalChat();agentLog('ok','inference','Локальная модель сформировала ответ',{answerChars:answer.length});aiAnswer.textContent=answer;}
+ catch(e){localAIHistory.pop();saveLocalChat();agentLog('error','inference','Ошибка генерации ответа',e?.stack||e?.message||String(e));aiAnswer.textContent='Ошибка генерации: '+(e&&e.message?e.message:String(e));}
+ finally{aiAskBtn.disabled=false;}
+});
+showAIStorage();
+
+renderLessons();loadLesson(courses[0]);updateLiveContext();setAgentButtonState('idle','не готов');renderAgentLogs();agentLog('info','ready','Интерфейс обучения и журнал готовы');
+// Автозапуск локального преподавателя при каждом открытии сайта. Кэш модели повторно используется браузером.
+window.addEventListener('load',async()=>{agentLog('info','autostart','Событие window.load: проверка Device Bridge и условий автозапуска');await refreshDeviceBridge({silent:true});deviceRefreshTimer=setInterval(()=>refreshDeviceBridge({silent:true}),60000);setTimeout(()=>{if(navigator.gpu&&window.isSecureContext){agentLog('info','autostart','HTTPS и WebGPU доступны; проверяю ресурсный профиль перед запуском');loadLocalAI(false);}else{agentLog('error','autostart','Автозапуск невозможен: отсутствует HTTPS или WebGPU',{secureContext:window.isSecureContext,webgpu:!!navigator.gpu,userAgent:navigator.userAgent});aiSetStatus('Автозапуск остановлен: нужен HTTPS и поддержка WebGPU. Никакие файлы модели пока не загружались.',true);}},900);});
+</script>
+</body>
+</html>
